@@ -1,0 +1,4 @@
+# scratch only; nothing here should be committed
+*.tmp
+*.log
+.DS_Store
