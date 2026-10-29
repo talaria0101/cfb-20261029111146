@@ -1,0 +1,85 @@
+# cfb-node: one binary per server. Tunnel connector, orchestrator interface, broker.
+
+[transport]
+# Which mechanism opens the byte stream to the edge. One trait, four impls
+# [E6 1.10]: direct is the only one fast enough for QUIC; http-connect is what a
+# sandbox offers and also solves name resolution where there is no resolver;
+# ssh-relay reaches a TCP relay over port 443; websocket carries the stream inside
+# an HTTPS upgrade for proxies that inspect traffic.
+kind = "direct"            # direct | http-connect | ssh-relay | websocket
+bind_address = ""          # edge bind address, for hosts with several interfaces
+no_delay = true            # a tunnel carries many small messages
+
+[edge]
+# Stage 1: cloudflared, supervised as a child process. Stage 2: cfrs's own codec,
+# behind a flag, once it has carried real traffic against the real edge.
+# [SPEC.md 4.3, E6 1.4]
+connector = "cloudflared"  # cloudflared | cfrs
+protocol = "quic"          # quic | http2. QUIC gets post-quantum key exchange;
+                           # http2 does not [A1 F3]
+ha_connections = 4         # hard default in cloudflared's source [A1 F5]
+token_file = "/etc/cfb-node/tunnel-token"   # never --token, never an env var
+config_source = "cloudflare"                # remotely-managed only [A1 2.1]
+# From cloudflared 2026.10.0 you can normalise URLs before ingress matching. It is
+# off by default and flips on for new releases on 2027-01-25. Set it now.
+# [A1 F6]
+disable_path_normalization = false
+
+[ingress]
+# Rules end in a catch-all. It is mandatory and the API rejects configurations
+# without one. [A1 F5]
+rules = [
+  { hostname = "orchestrator.internal.example.com", service = "http://127.0.0.1:4646" },
+  { hostname = "storage.internal.example.com",     service = "http://127.0.0.1:8333" },
+  { hostname = "terminal.internal.example.com",    service = "http://127.0.0.1:7681" },
+  { service = "http_status:404" },
+]
+
+[enroll]
+# ServerBee's model [E4 1.5]: the agent generates 32 random bytes and persists them
+# BEFORE claiming a single-use server-bound short-lived offer, so a write failure
+# cannot burn it. The server stores an argon2 hash and never returns the plaintext.
+# A 401 on upgrade triggers re-enrollment capped at three attempts. A permanent auth
+# failure exits 78 to match systemd's RestartPreventExitStatus.
+run_token_file = "/etc/cfb-node/run-token"
+offer_endpoint = "https://control-plane.example.com/api/enroll/offer"
+max_enroll_attempts = 3
+auth_failure_exit_code = 78
+
+[capabilities]
+# Agent-owned, not server-owned. Default everything sensitive off. [E4 1.6]
+mask = 1852               # terminal, exec, file and docker all off
+host_grant_ceiling_hours = 24
+# The agent deliberately ignores a server-advertised capabilities field.
+
+[broker]
+# Ingress routing to local services. HTTP is done in cfrs's Tunnel::resolve and
+# Origin; raw TCP is net-new. [E6 1.10]
+listen = "127.0.0.1:7844"
+max_streams = 256         # cfrs's tunnel-protocol window [B8 3.1]
+initial_window_kib = 256
+max_data_frame_kib = 64
+
+[orchestrator]
+# A driver trait, three implementations. cfb-node exposes the orchestrator; it does
+# not run it. No gRPC over a Tunnel public hostname. [B6 F13]
+driver = "nomad"          # nomad | k3s | docker
+address = "http://127.0.0.1:4646"
+# Nomad: set the disconnect block explicitly, or an allocation on a node that
+# misses heartbeats is marked lost and replaced. [B3 F10]
+lost_after = "90s"
+stop_on_client_after = "180s"
+# k3s: --tls-san <tunnel-hostname> before first start, or the apiserver cert does
+# not cover the tunnel hostname and clients fail with x509 unknown authority.
+# [B3 F19]
+
+[queue]
+# Cloudflare Queues HTTP pull consumer. The token needs both queues_read and
+# queues_write, because acknowledging mutates queue state. [A4 2.2]
+endpoint = "https://api.cloudflare.com/client/v4/accounts/{account}/queues/{queue}/messages/pull"
+batch_size = 50
+visibility_timeout_ms = 43200000     # 12 h, the documented maximum
+
+[env]
+# Platform value wins, local-only survives, HOST_WINS always wins. [E5 1.7]
+resolver = "platform-first"

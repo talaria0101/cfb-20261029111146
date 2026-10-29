@@ -1,6 +1,6 @@
 # Research
 
-21 primary-source files. Every figure in `../SPEC.md` and `../docs/` traces to one of
+27 primary-source files. Every figure in `../SPEC.md` and `../docs/` traces to one of
 them, and every figure in them traces to a URL that was actually fetched on 2026-10-29
 unless the file says otherwise.
 
@@ -27,6 +27,12 @@ unless the file says otherwise.
 | `C5-academic-prior-art.md` | papers on serverless cost, cold starts and edge placement |
 | `C6-critique-failure-modes.md` | every way the design fails or is worse than what it replaces |
 | `D1-synthesis-gaps.md` | cross-check pass: where two files disagree, and the open questions |
+| `E1-homelable.md` | Pouzor/homelable: data model, API, and the agent that does not exist |
+| `E2-coreobs.md` | crocofied/CoreObs: shared-database architecture, dormant, and its open API |
+| `E3-omnyssh.md` | timhartmann7/omnyssh: crate split, measured binary sizes, poll discipline |
+| `E4-serverbee.md` | ZingerLittleBee/ServerBee: outbound-only agent, enrollment, capability mask |
+| `E5-mirrord.md` | metalbear-co/mirrord: connect-info shape, environment resolution, wire format |
+| `E6-cfrs.md` | talaria0101/cfrs: full source read. What works, what does not, what is reusable |
 
 ## Method
 

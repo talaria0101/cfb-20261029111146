@@ -2,19 +2,18 @@ name = "cfb-control-plane"
 main = "src/index.ts"
 compatibility_date = "2026-10-29"
 
-# Static assets for the SPA. Requests to static assets are free and unlimited on
-# Workers Paid, so the dashboard front end costs the $5 floor and nothing else.
-# Do NOT enable Workers Caching in front of this: cache hits bill at the full
-# per-request rate including static assets. [A6 2.5]
+# Static assets for the SPA. Free and unlimited on Workers Paid, so the front end
+# costs the $5 floor and nothing else. Do NOT enable Workers Caching in front of
+# this: cache hits bill at the full per-request rate including static assets.
+# [A6 2.5]
 [assets]
 directory = "./dist"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
-# One VPC Service per internal HTTP endpoint on your own metal.
-# Host and port come from the service configuration and are IGNORED in the
-# fetch() URL, which is what makes SSRF structurally impossible on this path.
-# [A5, verified against the Workers VPC overview page 2026-10-29]
+# One VPC Service per internal HTTP endpoint on your own metal. Host and port come
+# from the service configuration and are IGNORED in the fetch() URL, which is what
+# makes SSRF structurally impossible on this path. [A5, verified 2026-10-29]
 [[vpc_services]]
 binding = "PRIVATE_ORCHESTRATOR"
 service_id = "replace-with-the-service-id-from-the-connectivity-directory"
@@ -25,8 +24,8 @@ binding = "PRIVATE_STORAGE"
 service_id = "replace-with-the-service-id-from-the-connectivity-directory"
 remote = true
 
-# Tier 1 Durable Objects only. Coordination, sessions, fan-out, rate limiters.
-# Authoritative state lives on your own Postgres. [C6 R3, A4 2.1]
+# Tier 1 Durable Objects only: sessions, fan-out, rate limiters. Authoritative
+# state lives on your own Postgres. [C6 R3, A4 2.1]
 [[durable_objects.bindings]]
 name = "COORDINATION"
 class_name = "CoordinationObject"
@@ -35,14 +34,14 @@ class_name = "CoordinationObject"
 tag = "v1"
 new_sqlite_classes = ["CoordinationObject"]
 
-# Job dispatch to the data plane. The Worker enqueues; it does not fan out at
-# request time, because of the 6-connection and 30-second CPU ceilings. [C1 1.24]
+# Job dispatch to the data plane. The Worker enqueues; it never fans out at request
+# time, because of the 6-connection and 30-second CPU ceilings. [C1 1.24]
 [[queues.producers]]
 binding = "JOBS"
 queue = "cfb-jobs"
 
-# Artifacts. Uploaded to by presigned URL, never proxied through the Worker,
-# because the zone body cap is 100 MB on Free and Pro. [B5 R4, C6 R7]
+# Artifacts. Uploaded to by presigned URL, never proxied through the Worker, because
+# the zone body cap is 100 MB on Free and Pro. [B5 R4, C6 R7]
 [[r2_buckets]]
 binding = "ARTIFACTS"
 bucket_name = "cfb-artifacts"
